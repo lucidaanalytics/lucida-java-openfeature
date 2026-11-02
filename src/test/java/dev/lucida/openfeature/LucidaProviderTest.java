@@ -115,9 +115,19 @@ class LucidaProviderTest {
         assertEquals(ErrorCode.TYPE_MISMATCH, client.getIntegerDetails("ratio", 7, ctx()).getErrorCode());
     }
 
+    /** $LUCIDA_TESTDATA, else the nearest testdata/ above the working dir (monorepo and mirror layouts both work). */
+    static Path testdata(String rel) throws java.io.IOException {
+        String env = System.getenv("LUCIDA_TESTDATA");
+        if (env != null && !env.isEmpty()) return Path.of(env, rel);
+        for (Path d = Path.of("").toAbsolutePath(); d != null; d = d.getParent()) {
+            if (Files.exists(d.resolve("testdata").resolve(rel))) return d.resolve("testdata").resolve(rel);
+        }
+        throw new java.io.IOException("testdata/" + rel + " not found");
+    }
+
     @Test
     void reasonTableMatchesSharedJson() throws Exception {
-        JsonNode table = new ObjectMapper().readTree(Files.readString(Path.of("../../testdata/openfeature/reasons.json"))).get("reasons");
+        JsonNode table = new ObjectMapper().readTree(Files.readString(testdata("openfeature/reasons.json"))).get("reasons");
         for (Iterator<Map.Entry<String, JsonNode>> it = table.fields(); it.hasNext();) {
             Map.Entry<String, JsonNode> e = it.next();
             assertEquals(e.getValue().get("reason").asText(), LucidaProvider.reason(new FlagResult(Boolean.TRUE, e.getKey(), -1, null, null)).toString(), e.getKey());
