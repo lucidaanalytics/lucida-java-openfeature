@@ -6,7 +6,7 @@ OpenFeature (Apache-2.0) server provider over the Lucida Java SDK. Install the s
 OpenFeatureAPI.getInstance().setProviderAndWait(new LucidaProvider(new Lucida("lc_pk_...", opts)));
 ```
 
-The targeting key is the Lucida distinct id and every other context attribute becomes a person property. Flags evaluate locally; a variant resolves as a string, multivariate flags are "on" for boolean evaluations, and number/object evaluations read the flag payload. Errors: `FLAG_NOT_FOUND`, `TYPE_MISMATCH`, `TARGETING_KEY_MISSING`. Group context is not mapped.
+The targeting key is the Lucida distinct id and every other context attribute becomes a person property. Flags evaluate locally; a variant resolves as a string, multivariate flags are "on" for boolean evaluations, and number/object evaluations read the flag payload. Errors: `FLAG_NOT_FOUND`, `TYPE_MISMATCH`, `TARGETING_KEY_MISSING`. `groups` (type to key) and `groupProperties` (or `group_properties`) feed Lucida groups. Raw Lucida reasons map through `testdata/openfeature/reasons.json` (SPLIT for a matched variant); `flagMetadata` carries `lucidaReason`, `conditionIndex`, `requestId`, `evaluatedLocally`. A client `fallbacks` value resolves with reason DEFAULT, no error code and `lucidaReason` `fallback`. `track(...)` captures a Lucida event (`$value` from the details value). The provider is an `EventProvider`: READY after the first definitions load, CONFIGURATION_CHANGED on reload, STALE when a reload fails, ERROR when the first load fails.
 
 ---
 

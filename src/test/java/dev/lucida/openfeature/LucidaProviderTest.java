@@ -4,13 +4,24 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.lucida.FlagContext;
+import dev.lucida.FlagResult;
 import dev.lucida.Lucida;
 import dev.openfeature.sdk.Client;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.ImmutableContext;
+import dev.openfeature.sdk.ImmutableStructure;
 import dev.openfeature.sdk.OpenFeatureAPI;
 import dev.openfeature.sdk.Value;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -30,13 +41,16 @@ class LucidaProviderTest {
 
     private static Lucida lucida;
     private static Client client;
+    private static LucidaProvider provider;
 
     @BeforeAll
     static void setUp() throws Exception {
         Lucida.Options o = new Lucida.Options();
         o.testModeFixtureJson = FIXTURE;
+        o.fallbacks = Map.of("dark", true, "cap", "ignored");
         lucida = new Lucida("lc_pk_x", o);
-        OpenFeatureAPI.getInstance().setProviderAndWait(new LucidaProvider(lucida));
+        provider = new LucidaProvider(lucida);
+        OpenFeatureAPI.getInstance().setProviderAndWait(provider);
         client = OpenFeatureAPI.getInstance().getClient();
     }
 
@@ -99,5 +113,64 @@ class LucidaProviderTest {
         assertEquals("d", mismatch.getValue());
         assertEquals(ErrorCode.TYPE_MISMATCH, mismatch.getErrorCode());
         assertEquals(ErrorCode.TYPE_MISMATCH, client.getIntegerDetails("ratio", 7, ctx()).getErrorCode());
+    }
+
+    @Test
+    void reasonTableMatchesSharedJson() throws Exception {
+        JsonNode table = new ObjectMapper().readTree(Files.readString(Path.of("../../testdata/openfeature/reasons.json"))).get("reasons");
+        for (Iterator<Map.Entry<String, JsonNode>> it = table.fields(); it.hasNext();) {
+            Map.Entry<String, JsonNode> e = it.next();
+            assertEquals(e.getValue().get("reason").asText(), LucidaProvider.reason(new FlagResult(Boolean.TRUE, e.getKey(), -1, null, null)).toString(), e.getKey());
+            if (e.getValue().has("variant_reason")) {
+                assertEquals(e.getValue().get("variant_reason").asText(), LucidaProvider.reason(new FlagResult("v", e.getKey(), 0, "v", null)).toString());
+            }
+        }
+        assertEquals("UNKNOWN", LucidaProvider.reason(new FlagResult(Boolean.TRUE, "brand_new", -1, null, null)).toString());
+    }
+
+    @Test
+    void metadataAndSplit() {
+        FlagEvaluationDetails<String> color = client.getStringDetails("color", "none", ctx());
+        assertEquals("SPLIT", color.getReason());
+        assertEquals("condition_match", color.getFlagMetadata().getString("lucidaReason"));
+        assertEquals(0, color.getFlagMetadata().getInteger("conditionIndex"));
+        assertTrue(color.getFlagMetadata().getBoolean("evaluatedLocally"));
+    }
+
+    @Test
+    void fallbackKeepsValueWithoutError() {
+        FlagEvaluationDetails<Boolean> d = client.getBooleanDetails("dark", false, ctx());
+        assertTrue(d.getValue());
+        assertEquals("DEFAULT", d.getReason());
+        assertEquals(null, d.getErrorCode());
+        assertEquals("fallback", d.getFlagMetadata().getString("lucidaReason"));
+    }
+
+    @Test
+    void groupsFeedLucidaGroups() {
+        ImmutableContext c = new ImmutableContext("u1", Map.of("groups", new Value(new ImmutableStructure(Map.of("org", new Value("acme"))))));
+        FlagContext fc = LucidaProvider.toFlagContext("u1", c);
+        assertEquals(Map.of("org", "acme"), fc.groups());
+    }
+
+    @Test
+    void trackCapturesAnEvent() {
+        int before = lucida.captured().size();
+        provider.track("purchase", ctx(), new dev.openfeature.sdk.MutableTrackingEventDetails(9.5).add("sku", "a"));
+        var e = lucida.captured().get(before);
+        assertEquals("purchase", e.get("event").asText());
+        assertEquals(9.5, e.get("properties").get("$value").asDouble());
+        assertEquals("a", e.get("properties").get("sku").asText());
+    }
+
+    @Test
+    void emitsConfigurationChangedAndStale() throws Exception {
+        CountDownLatch changed = new CountDownLatch(1), stale = new CountDownLatch(1);
+        client.onProviderConfigurationChanged(d -> changed.countDown());
+        client.onProviderStale(d -> stale.countDown());
+        provider.changed();
+        provider.stale();
+        assertTrue(changed.await(5, TimeUnit.SECONDS));
+        assertTrue(stale.await(5, TimeUnit.SECONDS));
     }
 }
