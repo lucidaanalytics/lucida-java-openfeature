@@ -4,14 +4,14 @@ OpenFeature (Apache-2.0) server provider over the Lucida Java SDK.
 
 ## Install
 
-From GitHub, [lucidaanalytics/lucida-java-openfeature](https://github.com/lucidaanalytics/lucida-java-openfeature), release `v0.1.1` (JitPack builds the tag; it needs the core SDK too):
+From GitHub, [lucidaanalytics/lucida-java-openfeature](https://github.com/lucidaanalytics/lucida-java-openfeature), release `v0.1.2` (JitPack builds the tag; it needs the core SDK too):
 
 ```kotlin
 // build.gradle.kts
 repositories { maven("https://jitpack.io") }
 dependencies {
-    implementation("com.github.lucidaanalytics:lucida-java:v0.1.1")
-    implementation("com.github.lucidaanalytics:lucida-java-openfeature:v0.1.1") {
+    implementation("com.github.lucidaanalytics:lucida-java:v0.1.2")
+    implementation("com.github.lucidaanalytics:lucida-java-openfeature:v0.1.2") {
         exclude(group = "io.github.lucidaanalytics", module = "lucida") // the core comes from JitPack above
     }
 }
