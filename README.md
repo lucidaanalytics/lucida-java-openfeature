@@ -1,6 +1,25 @@
 # lucida-openfeature (Java)
 
-OpenFeature (Apache-2.0) server provider over the Lucida Java SDK. Install the sibling SDK first (`cd ../java && mvn install`), then register the provider:
+OpenFeature (Apache-2.0) server provider over the Lucida Java SDK.
+
+## Install
+
+From GitHub, [lucidaanalytics/lucida-java-openfeature](https://github.com/lucidaanalytics/lucida-java-openfeature), release `v0.1.0` (JitPack builds the tag; it needs the core SDK too):
+
+```kotlin
+// build.gradle.kts
+repositories { maven("https://jitpack.io") }
+dependencies {
+    implementation("com.github.lucidaanalytics:lucida-java:v0.1.0")
+    implementation("com.github.lucidaanalytics:lucida-java-openfeature:v0.1.0") {
+        exclude(group = "io.github.lucidaanalytics", module = "lucida") // the core comes from JitPack above
+    }
+}
+```
+
+In Maven, add the JitPack repository, both dependencies and an `<exclusion>` of `io.github.lucidaanalytics:lucida` on the provider. Maven Central (`io.github.lucidaanalytics:lucida-openfeature`) is coming.
+
+Then register the provider:
 
 ```java
 OpenFeatureAPI.getInstance().setProviderAndWait(new LucidaProvider(new Lucida("lc_pk_...", opts)));

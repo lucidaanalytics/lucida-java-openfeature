@@ -1,0 +1,8 @@
+# This module depends on the base Java SDK (io.github.lucidaanalytics:lucida), which is not on Maven Central yet: build it first.
+jdk:
+  - openjdk17
+before_install:
+  - git clone --depth 1 --branch v0.1.0 https://github.com/lucidaanalytics/lucida-java /tmp/lucida-java
+  - mvn -B -ntp -f /tmp/lucida-java/pom.xml install -DskipTests -Dgpg.skip -Dmaven.javadoc.skip=true
+install:
+  - mvn -B -ntp install -DskipTests -Dgpg.skip -Dmaven.javadoc.skip=true
